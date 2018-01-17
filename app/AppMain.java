@@ -17,8 +17,7 @@ public class  AppMain implements AppConstants
         System.out.println("Started connecting at: " + dateFormat.format(connStartTime));
 
         MongoCRUD mCrud = new MongoCRUD();
-        mCrud.ConnectToDB(AppConstants.MONGO_HOST, Integer.parseInt(AppConstants.MONGO_PORT), AppConstants.MONGO_DB);
-        mCrud.CreateCollection(AppConstants.MONGO_COLLECTION);
+        mCrud.ConnectToDB(AppConstants.MONGO_HOST, Integer.parseInt(AppConstants.MONGO_PORT), AppConstants.MONGO_DB, AppConstants.MONGO_COLLECTION);
 
         Date connEndTime = new Date();
         System.out.println("Finished connecting at: " + dateFormat.format(connEndTime));
@@ -34,7 +33,7 @@ public class  AppMain implements AppConstants
         System.out.println("Started operation at: " + dateFormat.format(opStartTime));
 
         /*******Retrieve document***********/
-        mCrud.RetrieveDocumentByID("0000000000200366");
+        mCrud.RetrieveDocument("docid","0000000000200366");
 
         /*******Update document***********/
         //mCrud.UpdateDocuments("docid","0000000000200364","createdBy","HUMAN");
@@ -53,7 +52,7 @@ public class  AppMain implements AppConstants
             lines = fileUtil.ParseFile(file);
             System.out.println("file name:" + file);
             for (String line : lines)
-                mCrud.InsertDocument(line,file);
+                mCrud.InsertDocument(line);
         }
         ***********************************/
 

@@ -1,125 +1,142 @@
 package mongodb;
 
 import com.mongodb.*;
+import com.mongodb.DB;
 import com.mongodb.MongoClient;
-import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.FindIterable;
-import com.mongodb.client.MongoIterable;
-import com.mongodb.client.gridfs.model.GridFSUploadOptions;
+import com.mongodb.client.*;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.gridfs.GridFSBucket;
 import com.mongodb.client.gridfs.GridFSBuckets;
 import com.mongodb.client.model.Updates;
 import com.mongodb.client.result.DeleteResult;
+import com.mongodb.client.result.UpdateResult;
+import com.mongodb.gridfs.GridFS;
+import com.mongodb.gridfs.GridFSDBFile;
+import com.mongodb.gridfs.GridFSInputFile;
 import com.mongodb.gridfs.GridFSFile;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
 import java.io.*;
-import java.util.Iterator;
+import java.util.*;
 
 
 public class MongoCRUD
 {
-    public void ConnectToDB(String host, int port, String db)
+    public void ConnectToDB(String host, int port, String db, String collection)
     {
         m_client = new MongoClient(host, port);
         m_database = m_client.getDatabase(db);
+        m_DB = m_client.getDB(db);
+        m_gridFSConnection = new GridFS(m_DB, "BigFileBucket");
 
-        //m_client_FS = new MongoClient(host, port);
-        //m_database_FS = m_client_FS.getDatabase("FS");
-        m_gridFSBucket = GridFSBuckets.create(m_database,"BigFiles");
-
-        System.out.println("Connected to Database: " + m_database);
-    }
-
-    public void CreateCollection(String name)
-    {
         MongoIterable<String> collectionStrings = m_database.listCollectionNames();
         for(String collectionName : collectionStrings)
         {
-            if (collectionName.equalsIgnoreCase(name))
+            if (collectionName.equalsIgnoreCase(collection))
             {
-                m_collection = m_database.getCollection(name);
-                System.out.println("Collection: " + name + " already exists");
+                m_collection = m_database.getCollection(collection);
+                m_DBCollection = m_DB.getCollection(collection);
                 return;
             }
         }
-        m_database.createCollection(name);
-        m_collection = m_database.getCollection(name);
-        System.out.println("Collection: " + name +  "newly created");
+        m_database.createCollection(collection);
+        m_collection = m_database.getCollection(collection);
+        m_DBCollection = m_DB.getCollection(collection);
     }
 
-    public void InsertDocument(String rpt,String file)
+    public void InsertDocument(String rpt)
     {
        Document doc = Document.parse(rpt);
        m_collection.insertOne(doc);
     }
 
-    public void InsertLargeDocument(String filePath,String docID, String fileName)
+    public void InsertLargeDocument(String filePath, HashMap<String,String> metaData)
     {
         try
         {
-            InputStream readStream = new FileInputStream(new File(filePath));
-            GridFSUploadOptions fsOptions = new GridFSUploadOptions().metadata(new Document("docID",docID));
-            ObjectId id = m_gridFSBucket.uploadFromStream(fileName,readStream,fsOptions);
-            readStream.close();
-        }
-        catch(FileNotFoundException e)
-        {
-            System.err.println("Large file to insert not found");
+            File inputFileLocation = new File(filePath);
+            GridFSInputFile gfsFile = m_gridFSConnection.createFile(inputFileLocation);
+            gfsFile.save();
+
+            BasicDBObject mongoInputQuery = new BasicDBObject();
+            for(Map.Entry entry:metaData.entrySet())
+                mongoInputQuery.put(entry.getKey().toString(),entry.getValue()); // insert document
+
+            mongoInputQuery.put("attachment", gfsFile);		// insert attachment
+            m_DBCollection.insert(mongoInputQuery);
         }
         catch(IOException e)
         {
-            System.err.println("File exception");
+            System.out.println("IOException when trying to create large file");
         }
     }
 
-    public void RetrieveLargeDocument()
+    public List<String> RetrieveDocument(String attribute, String value)
     {
-        //m_gridFSBucket.find().forEach(printGrid);
+        List<String> jsonDocs = new ArrayList<String>();
+        FindIterable<Document> results = m_collection.find(Filters.eq(attribute,value));
+        MongoCursor<Document> cursor = results.iterator();
+        while(cursor.hasNext())
+        {
+            Document doc = cursor.next();
+            jsonDocs.add(doc.toJson());
+        }
+        return jsonDocs;
     }
 
-    public void RetrieveDocumentByID(String ID)
+    public void RetrieveLargeDocument(String attribute, String value, String outputPath)
     {
-        m_collection.find(Filters.eq("docid", ID)).limit(1).forEach(printBlock);
+        BasicDBObject mongoOutputQuery = new BasicDBObject();
+        mongoOutputQuery.put(attribute, value);
+        DBCursor cursor = m_DBCollection.find(mongoOutputQuery);	//retrieve document n attachment object
+        DBObject retrieveDocument = (DBObject) cursor.next().get("attachment");
+
+        GridFS retrieveGFSFile = new GridFS(m_DB, "BigFileBucket");
+        GridFSDBFile fileOutput = retrieveGFSFile.findOne((ObjectId) retrieveDocument.get("_id")); // retrieve attachment file
+        try
+        {
+            fileOutput.writeTo(outputPath + "\\" + fileOutput.getFilename());    // output file to destination
+        }catch(IOException e)
+        {
+            System.out.println("IOException when writing to file path for large file");
+        }
     }
 
-    public void UpdateOneDocument(String attribute, String value, Document doc)
+    public long UpdateOneDocument(String attribute, String value, Document doc)
     {
-        m_collection.updateOne(Filters.eq(attribute,value), doc);
-        System.out.println("Updated document: " + attribute + " : " + value);
+        UpdateResult result = m_collection.updateOne(Filters.eq(attribute,value), doc);
+        return result.getModifiedCount();
     }
 
-    public void UpdateOneDocument(String attribute, String value, String newAttribute, String newValue)
+    public long UpdateOneDocument(String attribute, String value, String newAttribute, String newValue)
     {
-        m_collection.updateOne(Filters.eq(attribute,value), Updates.set(newAttribute,newValue));
-        System.out.println("Updated document: " + attribute + " : " + value);
+        UpdateResult result = m_collection.updateOne(Filters.eq(attribute,value), Updates.set(newAttribute,newValue));
+        return result.getModifiedCount();
     }
 
-    public void UpdateDocuments(String attribute, String value, Document doc)
+    public long UpdateDocuments(String attribute, String value, Document doc)
     {
-        m_collection.updateMany(Filters.eq(attribute,value), doc);
-        System.out.println("Updated document: " + attribute + " : " + value);
+        UpdateResult result = m_collection.updateMany(Filters.eq(attribute,value), doc);
+        return result.getModifiedCount();
     }
 
-    public void UpdateDocuments(String attribute, String value, String newAttribute, String newValue)
+    public long UpdateDocuments(String attribute, String value, String newAttribute, String newValue)
     {
-        m_collection.updateMany(Filters.eq(attribute,value), Updates.set(newAttribute,newValue));
-        System.out.println("Updated document: " + attribute + " : " + value);
+        UpdateResult result = m_collection.updateMany(Filters.eq(attribute,value), Updates.set(newAttribute,newValue));
+        return result.getModifiedCount();
     }
 
-    public void DeleteOneDocument(String attribute, String value)
+    public long DeleteOneDocument(String attribute, String value)
     {
         DeleteResult result = m_collection.deleteOne(new Document(attribute,value));
-        System.out.println("Document delete result: " + result.toString());
+        return result.getDeletedCount();
     }
 
-    public void DeleteDocuments(String attribute, String value)
+    public long DeleteDocuments(String attribute, String value)
     {
         DeleteResult result = m_collection.deleteMany(new Document(attribute,value));
-        System.out.println("Document delete result: " + result.toString());
+        return result.getDeletedCount();
     }
 
     public void DisplayAllDocuments()
@@ -152,18 +169,10 @@ public class MongoCRUD
         }
     };
 
-    Block<GridFSFile> printGrid = new Block<GridFSFile>()
-    {
-        public void apply(final GridFSFile gridFSFile)
-        {
-            System.out.println(gridFSFile.toString());
-        }
-    };
-
     private MongoClient m_client;
     private MongoDatabase m_database;
     private MongoCollection<Document> m_collection;
-    private GridFSBucket m_gridFSBucket;
-    private MongoClient m_client_FS;
-    private MongoDatabase m_database_FS;
+    private GridFS m_gridFSConnection;
+    private DBCollection m_DBCollection;
+    private DB m_DB;
 };
