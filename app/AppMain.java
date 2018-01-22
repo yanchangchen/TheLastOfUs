@@ -33,7 +33,7 @@ public class  AppMain implements AppConstants
         System.out.println("Started operation at: " + dateFormat.format(opStartTime));
 
         /*******Retrieve document***********/
-        mCrud.RetrieveDocument("docid","0000000000200366");
+        //mCrud.RetrieveDocument("docid","0000000000200366");
 
         /*******Update document***********/
         //mCrud.UpdateDocuments("docid","0000000000200364","createdBy","HUMAN");
