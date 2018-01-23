@@ -1,4 +1,4 @@
-package com.example.demo;
+package com.example.demo.TheLastOfUs.mongodb;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +16,8 @@ import com.mongodb.DBCursor;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoCredential;
 import com.mongodb.ServerAddress;
+
+import com.example.demo.TheLastOfUs.app.*;
 
 @RestController
 public class RestControllers {
@@ -61,7 +63,6 @@ public class RestControllers {
 		BasicDBObject mongoQuery = new BasicDBObject();
 		BasicDBObject mongoFilter = new BasicDBObject();
 		mongoQuery.put("docid", docid);
-		mongoFilter.put("source", 1);
 		DBCursor cursor = collection.find(mongoQuery);
     	String returnJson = cursor.next().toString();
     	
@@ -128,11 +129,19 @@ public class RestControllers {
     
     public void initaliseConnection()
     {
-    	List<MongoCredential> credential = new ArrayList<>();
-		credential.add(MongoCredential.createScramSha1Credential("superAdmin", "admin", "mongoDB".toCharArray()));
-		mongoClient = new MongoClient(new ServerAddress("localhost", 27017), credential);
-		DB db = mongoClient.getDB("mydb2");
-		collection = db.getCollection("mydb2");
+//    	List<MongoCredential> credential = new ArrayList<>();
+//		credential.add(MongoCredential.createScramSha1Credential("superAdmin", "admin", "mongoDB".toCharArray()));
+//		mongoClient = new MongoClient(new ServerAddress("localhost", 27017), credential);
+    	
+    	 ArrayList<ServerAddress> seeds = new ArrayList<ServerAddress>();
+         seeds.add(new ServerAddress(TLOUConstants.MONGO_HOST, TLOUConstants.MONGO_PORT));
+         seeds.add(new ServerAddress(TLOUConstants.MONGO_HOST, TLOUConstants.MONGO_PORT2));
+         seeds.add(new ServerAddress(TLOUConstants.MONGO_HOST, TLOUConstants.MONGO_PORT3));
+         mongoClient = new MongoClient(seeds);
+		
+         DB db = mongoClient.getDB(TLOUConstants.MONGO_DB);
+		
+         collection = db.getCollection(TLOUConstants.MONGO_COLLECTION);
     }
     
     public void closeConnection()

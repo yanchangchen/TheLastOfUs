@@ -1,19 +1,16 @@
-package TheLastOfUs.mongodb;
+package com.example.demo.TheLastOfUs.mongodb;
 
 import com.mongodb.*;
 import com.mongodb.DB;
 import com.mongodb.MongoClient;
 import com.mongodb.client.*;
 import com.mongodb.client.model.Filters;
-import com.mongodb.client.gridfs.GridFSBucket;
-import com.mongodb.client.gridfs.GridFSBuckets;
 import com.mongodb.client.model.Updates;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
 import com.mongodb.gridfs.GridFS;
 import com.mongodb.gridfs.GridFSDBFile;
 import com.mongodb.gridfs.GridFSInputFile;
-import com.mongodb.gridfs.GridFSFile;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
