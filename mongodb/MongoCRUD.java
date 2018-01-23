@@ -1,4 +1,4 @@
-package mongodb;
+package TheLastOfUs.mongodb;
 
 import com.mongodb.*;
 import com.mongodb.DB;
@@ -23,12 +23,13 @@ import java.util.*;
 
 public class MongoCRUD
 {
-    public void ConnectToDB(String host, int port, String db, String collection)
+    public void ConnectToDB(ArrayList<ServerAddress> seeds, String db, String collection, String bucket)
     {
-        m_client = new MongoClient(host, port);
+        m_client = new MongoClient("35.227.62.44",27019);
+        //m_client = new MongoClient(seeds);
         m_database = m_client.getDatabase(db);
         m_DB = m_client.getDB(db);
-        m_gridFSConnection = new GridFS(m_DB, "BigFileBucket");
+        m_gridFSConnection = new GridFS(m_DB, bucket);
 
         MongoIterable<String> collectionStrings = m_database.listCollectionNames();
         for(String collectionName : collectionStrings)
@@ -49,6 +50,11 @@ public class MongoCRUD
     {
        Document doc = Document.parse(rpt);
        m_collection.insertOne(doc);
+    }
+
+    public void InsertDocument(Document doc)
+    {
+        m_collection.insertOne(doc);
     }
 
     public void InsertLargeDocument(String filePath, HashMap<String,String> metaData)

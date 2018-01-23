@@ -1,4 +1,4 @@
-package utilities;
+package TheLastOfUs.utilities;
 
 import java.io.BufferedReader;
 import java.io.File;
